@@ -42,7 +42,6 @@ What is Kickstart?
     - (or HTML version): https://neovim.io/doc/user/lua-guide.html
 
 Kickstart Guide:
-
   TODO: The very first thing you should do is to run the command `:Tutor` in Neovim.
 
     If you don't know what this means, type the following:
@@ -63,7 +62,7 @@ Kickstart Guide:
     This should be the first place you go to look when you're stuck or confused
     with something. It's one of my favorite neovim features.
 
-    MOST IMPORTANTLY, we provide a keymap "<space>sh" to [s]earch the [h]elp documentation,
+    MOST IMPORTANTLY, we provide a keymap "<space>sh" to [s]earch the [h]elp documentation,keymap.
     which is very useful when you're not sure exactly what you're looking for.
 
   I have left several `:help X` comments throughout the init.lua
@@ -94,6 +93,10 @@ vim.g.maplocalleader = ' '
 -- See `:help vim.opt`
 -- NOTE: You can change these options as you wish!
 --  For more options, you can see `:help option-list`
+-- Default shiftwidth & tabstop
+vim.opt.tabstop = 4
+vim.opt.shiftwidth = 4
+vim.opt.expandtab = true
 
 -- Make line numbers default
 vim.opt.number = true
@@ -184,6 +187,17 @@ vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right win
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
 
+-- Keymaps to improve editing
+vim.keymap.set('i', 'jk', '<escape>', { desc = 'Quickly exit from insert mode' })
+vim.keymap.set('n', '<C-s>', ':w<enter>', { desc = 'Quickly save current buffer' })
+
+-- Remap 'j' and 'k' to move by display lines
+vim.api.nvim_set_keymap('n', 'j', 'gj', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', 'k', 'gk', { noremap = true, silent = true })
+
+-- Keymaps for Neo-tree
+vim.keymap.set('n', '<leader>e', ':Neotree toggle current reveal_force_cwd<cr>', { desc = '[E]xplore file system' })
+
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
@@ -220,7 +234,7 @@ vim.opt.rtp:prepend(lazypath)
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup {
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
-  'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
+  -- 'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
@@ -232,7 +246,7 @@ require('lazy').setup {
   --    require('Comment').setup({})
 
   -- "gc" to comment visual regions/lines
-  { 'numToStr/Comment.nvim', opts = {} },
+  -- { 'numToStr/Comment.nvim', opts = {} },
 
   -- Here is a more advanced example where we pass configuration
   -- options to `gitsigns.nvim`. This is equivalent to the following lua:
@@ -271,15 +285,19 @@ require('lazy').setup {
     'folke/which-key.nvim',
     event = 'VimEnter', -- Sets the loading event to 'VimEnter'
     config = function() -- This is the function that runs, AFTER loading
-      require('which-key').setup()
+      local wk = require 'which-key'
+      wk.setup()
 
-      -- Document existing key chains
-      require('which-key').register {
-        ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
-        ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
-        ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
-        ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
-        ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
+      wk.add {
+        { '<leader>c', group = '[C]ode' },
+        { '<leader>d', group = '[D]ocument' },
+        { '<leader>e', group = '[E]xplore File Tree' },
+        { '<leader>g', group = '[G]o to' },
+        { '<leader>h', group = '[H]arpoon' },
+        { '<leader>o', group = '[O]verseer' },
+        { '<leader>r', group = '[R]ename' },
+        { '<leader>s', group = '[S]earch' },
+        { '<leader>w', group = '[W]orkspace' },
       }
     end,
   },
@@ -315,7 +333,7 @@ require('lazy').setup {
       -- Useful for getting pretty icons, but requires special font.
       --  If you already have a Nerd Font, or terminal set up with fallback fonts
       --  you can enable this
-      -- { 'nvim-tree/nvim-web-devicons' }
+      { 'nvim-tree/nvim-web-devicons' },
     },
     config = function()
       -- Telescope is a fuzzy finder that comes with a lot of different things that
@@ -370,6 +388,7 @@ require('lazy').setup {
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
+      vim.keymap.set('n', '<leader>sb', builtin.buffers, { desc = '[S]earch [B]uffers' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
 
@@ -456,14 +475,14 @@ require('lazy').setup {
           -- Jump to the definition of the word under your cursor.
           --  This is where a variable was first declared, or where a function is defined, etc.
           --  To jump back, press <C-T>.
-          map('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
+          map('<leader>gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
 
           -- Find references for the word under your cursor.
-          map('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
+          map('<leader>gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
 
           -- Jump to the implementation of the word under your cursor.
           --  Useful when your language has ways of declaring types without an actual implementation.
-          map('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
+          map('<leader>gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
 
           -- Jump to the type of the word under your cursor.
           --  Useful when you're not sure what type a variable is and you want to see
@@ -541,7 +560,7 @@ require('lazy').setup {
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`tsserver`) will work just fine
-        -- tsserver = {},
+        tsserver = {},
         --
 
         lua_ls = {
@@ -618,7 +637,9 @@ require('lazy').setup {
         --
         -- You can use a sub-list to tell conform to run *until* a formatter
         -- is found.
-        -- javascript = { { "prettierd", "prettier" } },
+        javascript = { 'biome' },
+        typescript = { 'biome' },
+        typescriptreact = { 'biome' },
       },
     },
   },
@@ -711,6 +732,7 @@ require('lazy').setup {
           { name = 'nvim_lsp' },
           { name = 'luasnip' },
           { name = 'path' },
+          { name = 'buffer' },
         },
       }
     end,
@@ -773,6 +795,17 @@ require('lazy').setup {
     end,
   },
 
+  {
+    'nvim-neo-tree/neo-tree.nvim',
+    branch = 'v3.x',
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'nvim-tree/nvim-web-devicons', -- not strictly required, but recommended
+      'MunifTanjim/nui.nvim',
+      -- "3rd/image.nvim", -- Optional image support in preview window: See `# Preview Mode` for more information
+    },
+  },
+
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
@@ -808,6 +841,121 @@ require('lazy').setup {
   --
   -- require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
+  --
+  {
+    'ThePrimeagen/harpoon',
+    config = function()
+      require('harpoon').setup()
+
+      -- Function to dynamically call gotoTerminal based on the key pressed
+      local function gotoHarpoonTerminal()
+        -- Use vim.v.count to get the count prefix, or default to 1 if no count is provided
+        local terminal_num = vim.v.count > 0 and vim.v.count or 1
+        require('harpoon.term').gotoTerminal(terminal_num)
+      end
+
+      vim.keymap.set('n', '<leader>hn', require('harpoon.ui').nav_next, { desc = '[H]arpoon [N]ext' })
+      vim.keymap.set('n', '<leader>hp', require('harpoon.ui').nav_prev, { desc = '[H]arpoon [P]rev' })
+      vim.keymap.set('n', '<leader>hs', require('harpoon.ui').toggle_quick_menu, { desc = '[H]arpoon [S]earch' })
+      vim.keymap.set('n', '<leader>ha', require('harpoon.mark').add_file, { desc = '[H]arpoon [A]dd Mark' })
+      -- Set up a keymap with <leader>ht that calls the gotoHarpoonTerminal function
+      -- The {expr = true} option allows for evaluating the count prefix
+      vim.keymap.set('n', '<leader>ht', gotoHarpoonTerminal, { desc = '[H]arpoon [T]erminal', noremap = true, silent = true })
+    end,
+  },
+
+  {
+    'otavioschwanck/arrow.nvim',
+    config = function()
+      require('arrow').setup {
+        leader_key = ';',
+        show_icons = true,
+      }
+    end,
+  },
+
+  {
+    'stevearc/overseer.nvim',
+    config = function()
+      require('overseer').setup {
+        task_list = {
+          bindings = {
+            ['<C-j>'] = false,
+            ['<C-k>'] = false,
+            ['<C-l>'] = false,
+            ['<C-h>'] = false,
+            ['<C-S-k>'] = 'ScrollOutputUp',
+            ['<C-S-j>'] = 'ScrollOutputDown',
+            ['<C-S-l>'] = 'IncreaseDetail',
+            ['<C-S-h>'] = 'DecreaseDetail',
+          },
+        },
+      }
+
+      vim.keymap.set('n', '<leader>ot', ':OverseerToggle<CR>', { desc = '[T]oggle Overseer', noremap = true })
+      vim.keymap.set('n', '<leader>or', ':OverseerRun<CR>', { desc = '[R]un Overseer', noremap = true })
+      vim.keymap.set('n', '<leader>oo', ':OverseerOpen<CR>', { desc = '[O]pen Overseer', noremap = true })
+      vim.keymap.set('n', '<leader>oc', ':OverseerClose<CR>', { desc = '[C]lose Overseer', noremap = true })
+    end,
+  },
+
+  {
+    'nvim-treesitter/nvim-treesitter-context',
+    config = function()
+      require('treesitter-context').setup {
+        enable = true, -- Enable this plugin (Can be enabled/disabled later via commands)
+        max_lines = 0, -- How many lines the window should span. Values <= 0 mean no limit.
+        min_window_height = 0, -- Minimum editor window height to enable context. Values <= 0 mean no limit.
+        line_numbers = true,
+        multiline_threshold = 20, -- Maximum number of lines to show for a single context
+        trim_scope = 'outer', -- Which context lines to discard if `max_lines` is exceeded. Choices: 'inner', 'outer'
+        mode = 'cursor', -- Line used to calculate context. Choices: 'cursor', 'topline'
+        -- Separator between context and content. Should be a single character string, like '-'.
+        -- When separator is set, the context will only show up when there are at least 2 lines above cursorline.
+        separator = nil,
+        zindex = 20, -- The Z-index of the context window
+        on_attach = nil, -- (fun(buf: integer): boolean) return false to disable attaching
+      }
+    end,
+  },
+
+  {
+    'folke/trouble.nvim',
+    opts = {},
+    cmd = 'Trouble',
+    keys = {
+      {
+        '<leader>xx',
+        '<cmd>Trouble diagnostics toggle<cr>',
+        desc = 'Diagnostics (Trouble)',
+      },
+      {
+        '<leader>xX',
+        '<cmd>Trouble diagnostics toggle filter.buf=0<cr>',
+        desc = 'Buffer Diagnostics (Trouble)',
+      },
+      {
+        '<leader>cs',
+        '<cmd>Trouble symbols toggle focus=false<cr>',
+        desc = 'Symbols (Trouble)',
+      },
+      {
+        '<leader>cl',
+        '<cmd>Trouble lsp toggle focus=false win.position=right<cr>',
+        desc = 'LSP Definitions / references / ... (Trouble)',
+      },
+      {
+        '<leader>xL',
+        '<cmd>Trouble loclist toggle<cr>',
+        desc = 'Location List (Trouble)',
+      },
+      {
+        '<leader>xQ',
+        '<cmd>Trouble qflist toggle<cr>',
+        desc = 'Quickfix List (Trouble)',
+      },
+    },
+  },
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
