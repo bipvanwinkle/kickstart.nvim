@@ -160,6 +160,9 @@ vim.opt.cursorline = true
 -- Minimal number of screen lines to keep above and below the cursor.
 vim.opt.scrolloff = 10
 
+-- Configure Neovim to use Nushell
+vim.opt.shell = '/opt/homebrew/bin/nu'
+
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
@@ -302,6 +305,7 @@ require('lazy').setup({
         { '<leader>r', group = '[R]ename' },
         { '<leader>s', group = '[S]earch' },
         { '<leader>w', group = '[W]orkspace' },
+        { '<leader>a', group = '[A]ssistant' },
       }
     end,
   },
@@ -609,8 +613,18 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
-        ts_ls = {},
+        ts_ls = {
+          root_dir = require('lspconfig').util.root_pattern { 'package.json', 'tsconfig.json' },
+          single_file_support = false,
+          settings = {},
+        },
         --
+
+        denols = {
+          root_dir = require('lspconfig').util.root_pattern { 'deno.json', 'deno.jsonc' },
+          single_file_support = false,
+          settings = {},
+        },
 
         lua_ls = {
           -- cmd = {...},
@@ -639,12 +653,11 @@ require('lazy').setup({
       -- You can add other tools here that you want Mason to install
       -- for you, so that they are available from within Neovim.
       local ensure_installed = vim.tbl_keys(servers or {})
-      vim.list_extend(ensure_installed, {
-        'stylua', -- Used to format Lua code
-      })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
       require('mason-lspconfig').setup {
+        ensure_installed = ensure_installed,
+        automatic_installation = true,
         handlers = {
           function(server_name)
             local server = servers[server_name] or {}
@@ -698,9 +711,12 @@ require('lazy').setup({
         --
         -- You can use a sub-list to tell conform to run *until* a formatter
         -- is found.
-        javascript = { 'biome' },
-        typescript = { 'biome' },
-        typescriptreact = { 'biome' },
+        javascript = { 'prettier' },
+        typescript = { 'prettier' },
+        typescriptreact = { 'prettier' },
+        json = { 'prettier' },
+        jsonc = { 'prettier' },
+        terraform = { 'terraform_fmt' },
       },
     },
   },
@@ -1043,6 +1059,42 @@ require('lazy').setup({
         desc = 'Quickfix List (Trouble)',
       },
     },
+  },
+
+  {
+    'nvim-focus/focus.nvim',
+    version = '*',
+    config = function()
+      require('focus').setup()
+    end,
+  },
+
+  {
+    'olimorris/codecompanion.nvim',
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'nvim-treesitter/nvim-treesitter',
+    },
+    config = function()
+      require('codecompanion').setup {
+        strategies = {
+          chat = {
+            adapter = 'anthropic',
+          },
+          inline = {
+            adapter = 'anthropic',
+          },
+        },
+      }
+
+      -- Normal Mode
+      vim.keymap.set('n', '<leader>atc', ':CodeCompanionChat Toggle<CR>', { desc = '[A]ssistant [T]oggle [C]hat' })
+      vim.keymap.set('n', '<leader>anc', ':CodeCompanionChat<CR>', { desc = '[A]ssistant [N]ew [C]hat' })
+      vim.keymap.set('n', '<leader>aa', ':CodeCompanionActions<CR>', { desc = '[A]ssistant [A]ctions' })
+
+      -- Visual Mode
+      vim.keymap.set('v', '<leader>ar', ':CodeCompanionReview<CR>', { desc = 'Review selected code' })
+    end,
   },
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
