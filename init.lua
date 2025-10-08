@@ -161,7 +161,7 @@ vim.opt.cursorline = true
 vim.opt.scrolloff = 10
 
 -- Configure Neovim to use Nushell
-vim.opt.shell = '/opt/homebrew/bin/nu'
+-- vim.opt.shell = '/opt/homebrew/bin/nu'
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
@@ -169,6 +169,12 @@ vim.opt.shell = '/opt/homebrew/bin/nu'
 -- Clear highlights on search when pressing <Esc> in normal mode
 --  See `:help hlsearch`
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
+
+-- Reload Config
+vim.keymap.set('n', '<leader>cr', function()
+  vim.cmd 'source $MYVIMRC'
+  vim.notify('Config reloaded!', vim.log.levels.INFO)
+end, { desc = '[C]onfig [R]eload' })
 
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
@@ -206,6 +212,22 @@ vim.api.nvim_set_keymap('n', 'k', 'gk', { noremap = true, silent = true })
 
 -- Keymaps for Neo-tree
 vim.keymap.set('n', '<leader>e', ':Neotree toggle current reveal_force_cwd<cr>', { desc = '[E]xplore file system' })
+
+-- Keymaps for Conform
+-- Create a global variable to track format-on-save state (default to true/enabled)
+vim.g.format_on_save_enabled = true
+
+-- Function to toggle format-on-save
+function _G.toggle_format_on_save()
+  vim.g.format_on_save_enabled = not vim.g.format_on_save_enabled
+  local status = vim.g.format_on_save_enabled and 'enabled' or 'disabled'
+  vim.notify('Format on save ' .. status, vim.log.levels.INFO)
+end
+
+-- Keybinding to toggle format-on-save
+vim.keymap.set('n', '<leader>tf', function()
+  _G.toggle_format_on_save()
+end, { desc = '[T]oggle [F]ormat on save' })
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
@@ -300,10 +322,10 @@ require('lazy').setup({
         { '<leader>d', group = '[D]ocument' },
         { '<leader>e', group = '[E]xplore File Tree' },
         { '<leader>g', group = '[G]o to' },
-        { '<leader>h', group = '[H]arpoon' },
         { '<leader>o', group = '[O]verseer' },
         { '<leader>r', group = '[R]ename' },
         { '<leader>s', group = '[S]earch' },
+        { '<leader>t', group = '[T]erminal' }, -- Add this line
         { '<leader>w', group = '[W]orkspace' },
         { '<leader>a', group = '[A]ssistant' },
       }
@@ -382,6 +404,46 @@ require('lazy').setup({
         },
       }
 
+      -- Custom Pickers
+      -- Searches all filenames
+      local function find_all_files()
+        local telescope = require 'telescope.builtin'
+        return telescope.find_files {
+          find_command = {
+            'fd',
+            '--type',
+            'f',
+            '--hidden',
+            '--no-ignore',
+            '--exclude',
+            'node_modules',
+            '--exclude',
+            '.git',
+            '.',
+          },
+          prompt_title = 'All Files',
+          path_display = { 'truncate' },
+        }
+      end
+      -- Searches contents of all files
+      local function grep_all_files()
+        local telescope = require 'telescope.builtin'
+        return telescope.live_grep {
+          additional_args = function()
+            return {
+              '--hidden',
+              '--no-ignore',
+              '--glob',
+              '!.git/*',
+              '--glob',
+              '!node_modules/*',
+            }
+          end,
+          prompt_title = 'Grep All Files',
+          path_display = { 'truncate' },
+        }
+      end
+
       -- Enable Telescope extensions if they are installed
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
@@ -391,9 +453,11 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
+      vim.keymap.set('n', '<leader>saf', find_all_files, { desc = '[S]earch [A]ll [F]iles' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
+      vim.keymap.set('n', '<leader>sag', grep_all_files, { desc = '[S]earch by [A]ll [G]rep' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>sb', builtin.buffers, { desc = '[S]earch [B]uffers' })
@@ -443,11 +507,6 @@ require('lazy').setup({
     -- Main LSP Configuration
     'neovim/nvim-lspconfig',
     dependencies = {
-      -- Automatically install LSPs and related tools to stdpath for Neovim
-      { 'williamboman/mason.nvim', config = true }, -- NOTE: Must be loaded before dependants
-      'williamboman/mason-lspconfig.nvim',
-      'WhoIsSethDaniel/mason-tool-installer.nvim',
-
       -- Useful status updates for LSP.
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
       { 'j-hui/fidget.nvim', opts = {} },
@@ -533,7 +592,7 @@ require('lazy').setup({
 
           -- WARN: This is not Goto Definition, this is Goto Declaration.
           --  For example, in C this would take you to the header.
-          map('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
+          map('<leader>gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
 
           -- The following two autocommands are used to highlight references of the
           -- word under your cursor when your cursor rests there for a little while.
@@ -593,83 +652,75 @@ require('lazy').setup({
       local capabilities = vim.lsp.protocol.make_client_capabilities()
       capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
 
-      -- Enable the following language servers
-      --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
-      --
-      --  Add any additional override configuration in the following tables. Available keys are:
-      --  - cmd (table): Override the default command used to start the server
-      --  - filetypes (table): Override the default list of associated filetypes for the server
-      --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
-      --  - settings (table): Override the default settings passed when initializing the server.
-      --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
-      local servers = {
-        -- clangd = {},
-        -- gopls = {},
-        -- pyright = {},
-        -- rust_analyzer = {},
-        -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
-        --
-        -- Some languages (like typescript) have entire language plugins that can be useful:
-        --    https://github.com/pmizio/typescript-tools.nvim
-        --
-        -- But for many setups, the LSP (`ts_ls`) will work just fine
-        ts_ls = {
-          root_dir = require('lspconfig').util.root_pattern { 'package.json', 'tsconfig.json' },
-          single_file_support = false,
-          settings = {},
-        },
-        --
+      vim.lsp.config.ts_ls = {
+        cmd = { 'typescript-language-server', '--stdio' },
+        filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact' },
+        capabilities = capabilities,
+        root_markers = { 'tsconfig.base.json', 'package.json', 'tsconfig.json' },
+        root_dir = function(bufnr, on_dir)
+          local ts_base_config = vim.fs.root(bufnr, { 'tsconfig.base.json' })
+          local root = vim.fs.root(bufnr, { 'package.json', 'tsconfig.json' })
+          local deno_root = vim.fs.root(bufnr, { 'deno.json' })
 
-        denols = {
-          root_dir = require('lspconfig').util.root_pattern { 'deno.json', 'deno.jsonc' },
-          single_file_support = false,
-          settings = {},
-        },
+          if ts_base_config then
+            on_dir(ts_base_config)
+          elseif root and not deno_root then
+            on_dir(root)
+          end
+        end,
+      }
+      vim.lsp.config.denols = {
+        cmd = { 'deno', 'lsp' },
+        filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact' },
+        capabilities = capabilities,
+        root_markers = { 'deno.json', 'deno.jsonc' },
+        root_dir = function(bufnr, on_dir)
+          local root = vim.fs.root(bufnr, { 'deno.json' })
 
-        lua_ls = {
-          -- cmd = {...},
-          -- filetypes = { ...},
-          -- capabilities = {},
-          settings = {
-            Lua = {
-              completion = {
-                callSnippet = 'Replace',
-              },
-              -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-              -- diagnostics = { disable = { 'missing-fields' } },
-            },
+          if root then
+            on_dir(root)
+          end
+        end,
+        single_file_support = false,
+      }
+      vim.lsp.config.lua_ls = {
+        cmd = { 'lua-language-server' },
+        filetypes = { 'lua' },
+        capabilities = capabilities,
+        settings = {
+          Lua = {
+            completion = { callSnippet = 'Replace' },
+            -- diagnostics = { disable = { 'missing-fields' } },
           },
         },
       }
-
-      -- Ensure the servers and tools above are installed
-      --  To check the current status of installed tools and/or manually install
-      --  other tools, you can run
-      --    :Mason
-      --
-      --  You can press `g?` for help in this menu.
-      require('mason').setup()
-
-      -- You can add other tools here that you want Mason to install
-      -- for you, so that they are available from within Neovim.
-      local ensure_installed = vim.tbl_keys(servers or {})
-      require('mason-tool-installer').setup { ensure_installed = ensure_installed }
-
-      require('mason-lspconfig').setup {
-        ensure_installed = ensure_installed,
-        automatic_installation = true,
-        handlers = {
-          function(server_name)
-            local server = servers[server_name] or {}
-            -- This handles overriding only values explicitly passed
-            -- by the server configuration above. Useful when disabling
-            -- certain features of an LSP (for example, turning off formatting for ts_ls)
-            server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-            require('lspconfig')[server_name].setup(server)
-          end,
+      vim.lsp.config.gopls = {
+        cmd = { 'gopls' },
+        filetypes = { 'go', 'gomod', 'gowork', 'gotmpl' },
+        capabilities = capabilities,
+        root_markers = { 'go.work', 'go.mod', '.git' },
+        settings = {
+          gopls = {
+            completeUnimported = true,
+            usePlaceholders = true,
+            analyses = {
+              unusedparams = true,
+            },
+            staticcheck = true,
+            gofumpt = true,
+          },
         },
       }
+      vim.lsp.enable 'ts_ls'
+      vim.lsp.enable 'denols'
+      vim.lsp.enable 'lua_ls'
+      vim.lsp.enable 'gopls'
     end,
+  },
+
+  {
+    'mason-org/mason.nvim',
+    opts = {},
   },
 
   { -- Autoformat
@@ -689,6 +740,9 @@ require('lazy').setup({
     opts = {
       notify_on_error = false,
       format_on_save = function(bufnr)
+        if vim.g.format_on_save_enabled == false then
+          return false
+        end
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
@@ -717,6 +771,9 @@ require('lazy').setup({
         json = { 'prettier' },
         jsonc = { 'prettier' },
         terraform = { 'terraform_fmt' },
+        yaml = { 'prettier' },
+        go = { 'gofmt' },
+        sql = { 'pg_format' },
       },
     },
   },
@@ -906,6 +963,15 @@ require('lazy').setup({
       'MunifTanjim/nui.nvim',
       -- "3rd/image.nvim", -- Optional image support in preview window: See `# Preview Mode` for more information
     },
+    config = function()
+      require('neo-tree').setup {
+        filesystem = {
+          filtered_items = {
+            always_show_by_pattern = { '.env*' },
+          },
+        },
+      }
+    end,
   },
 
   { -- Highlight, edit, and navigate code
@@ -946,28 +1012,6 @@ require('lazy').setup({
   -- require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
   --
-  {
-    'ThePrimeagen/harpoon',
-    config = function()
-      require('harpoon').setup()
-
-      -- Function to dynamically call gotoTerminal based on the key pressed
-      local function gotoHarpoonTerminal()
-        -- Use vim.v.count to get the count prefix, or default to 1 if no count is provided
-        local terminal_num = vim.v.count > 0 and vim.v.count or 1
-        require('harpoon.term').gotoTerminal(terminal_num)
-      end
-
-      vim.keymap.set('n', '<leader>hn', require('harpoon.ui').nav_next, { desc = '[H]arpoon [N]ext' })
-      vim.keymap.set('n', '<leader>hp', require('harpoon.ui').nav_prev, { desc = '[H]arpoon [P]rev' })
-      vim.keymap.set('n', '<leader>hs', require('harpoon.ui').toggle_quick_menu, { desc = '[H]arpoon [S]earch' })
-      vim.keymap.set('n', '<leader>ha', require('harpoon.mark').add_file, { desc = '[H]arpoon [A]dd Mark' })
-      -- Set up a keymap with <leader>ht that calls the gotoHarpoonTerminal function
-      -- The {expr = true} option allows for evaluating the count prefix
-      vim.keymap.set('n', '<leader>ht', gotoHarpoonTerminal, { desc = '[H]arpoon [T]erminal', noremap = true, silent = true })
-    end,
-  },
-
   {
     'otavioschwanck/arrow.nvim',
     config = function()
@@ -1112,11 +1156,52 @@ require('lazy').setup({
     end,
   },
 
+  {
+    'nvim-pack/nvim-spectre',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    config = function()
+      require('spectre').setup {
+        live_update = true,
+        replace_engine = { ['sed'] = {
+          cmd = 'sed',
+          args = { '-i', '', '-E' },
+        } },
+      }
+    end,
+  },
+
+  {
+    'akinsho/toggleterm.nvim',
+    version = '*',
+    config = function()
+      require('toggleterm').setup {
+        -- Only override what you need to - the defaults are good
+        direction = 'float', -- Start with floating window
+        float_opts = {
+          border = 'curved',
+        },
+      }
+
+      -- Set up key mappings for terminal
+      function _G.set_terminal_keymaps()
+        local opts = { buffer = 0, noremap = true }
+        vim.keymap.set('t', '<esc>', [[<C-\><C-n>]], opts)
+        vim.keymap.set('t', 'jk', [[<C-\><C-n>]], opts)
+      end
+
+      -- Apply keymaps automatically when terminal opens
+      vim.cmd 'autocmd! TermOpen term://* lua set_terminal_keymaps()'
+
+      -- Simple terminal toggle command (with description for which-key)
+      vim.keymap.set('n', '<leader>tt', '<cmd>ToggleTerm<CR>', { desc = '[T]oggle [T]erminal' })
+    end,
+  },
+
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!
