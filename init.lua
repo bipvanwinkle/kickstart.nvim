@@ -1076,16 +1076,31 @@ require('lazy').setup({
       'nvim-treesitter/nvim-treesitter',
     },
     config = function()
-      require('codecompanion').setup {
-        strategies = {
-          chat = {
-            adapter = 'anthropic',
+      local using_open_ai = vim.env.OPENAI_API_KEY
+      local using_anthropic = vim.env.ANTHROPIC_API_KEY
+      if using_open_ai then
+        require('codecompanion').setup {
+          strategies = {
+            chat = {
+              adapter = 'openai',
+            },
+            inline = {
+              adapter = 'openai',
+            },
           },
-          inline = {
-            adapter = 'anthropic',
+        }
+      elseif using_anthropic then
+        require('codecompanion').setup {
+          strategies = {
+            chat = {
+              adapter = 'anthropic',
+            },
+            inline = {
+              adapter = 'anthropic',
+            },
           },
-        },
-      }
+        }
+      end
 
       -- Normal Mode
       vim.keymap.set('n', '<leader>atc', ':CodeCompanionChat Toggle<CR>', { desc = '[A]ssistant [T]oggle [C]hat' })
