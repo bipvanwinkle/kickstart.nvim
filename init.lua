@@ -229,6 +229,18 @@ vim.keymap.set('n', '<leader>tf', function()
   _G.toggle_format_on_save()
 end, { desc = '[T]oggle [F]ormat on save' })
 
+-- Function to format selected text
+function format_selection()
+  local conform = require 'conform'
+  conform.format {
+    async = true,
+    range = { vim.fn.line 'v', vim.fn.line '.' }, -- Format the visual selection
+  }
+end
+
+-- Add this line to your "Keymaps to improve editing" section
+vim.keymap.set('v', '<leader>fs', ':lua format_selection()<CR>', { noremap = true, silent = true, desc = '[F]ormat [S]election' })
+
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
@@ -711,10 +723,43 @@ require('lazy').setup({
           },
         },
       }
+
+      vim.lsp.config.rust_analyzer = {
+        cmd = { 'rust-analyzer' },
+        filetypes = { 'rust' },
+        root_markers = { 'Cargo.toml', '.git' },
+        capabilities = capabilities,
+        settings = {
+          ['rust-analyzer'] = {
+            assist = {
+              importGranularity = 'module',
+              importPrefix = 'by_self',
+            },
+            cargo = {
+              loadOutDirsFromCheck = true,
+            },
+            procMacro = {
+              enable = true,
+            },
+          },
+        },
+        root_dir = function(bufnr, on_dir)
+          local cargo_toml = vim.fs.root(bufnr, { 'Cargo.toml' })
+          local git_dir = vim.fs.root(bufnr, { '.git' })
+
+          if cargo_toml then
+            on_dir(cargo_toml)
+          elseif git_dir then
+            on_dir(git_dir)
+          end
+        end,
+      }
+
       vim.lsp.enable 'ts_ls'
       vim.lsp.enable 'denols'
       vim.lsp.enable 'lua_ls'
       vim.lsp.enable 'gopls'
+      vim.lsp.enable 'rust_analyzer'
     end,
   },
 
