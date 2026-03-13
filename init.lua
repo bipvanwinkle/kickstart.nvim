@@ -205,6 +205,7 @@ vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper win
 -- Keymaps to improve editing
 vim.keymap.set('i', 'jk', '<escape>', { desc = 'Quickly exit from insert mode' })
 vim.keymap.set('n', '<C-s>', ':w<enter>', { desc = 'Quickly save current buffer' })
+vim.keymap.set('n', '<leader>bd', ':bd<CR>', { desc = '[B]uffer [D]elete' })
 
 -- Remap 'j' and 'k' to move by display lines
 vim.api.nvim_set_keymap('n', 'j', 'gj', { noremap = true, silent = true })
@@ -1012,7 +1013,7 @@ require('lazy').setup({
       require('neo-tree').setup {
         filesystem = {
           filtered_items = {
-            always_show_by_pattern = { '.env*' },
+            always_show_by_pattern = { '.env*', '.github' },
           },
         },
       }
@@ -1230,7 +1231,6 @@ require('lazy').setup({
       -- Set up key mappings for terminal
       function _G.set_terminal_keymaps()
         local opts = { buffer = 0, noremap = true }
-        vim.keymap.set('t', '<esc>', [[<C-\><C-n>]], opts)
         vim.keymap.set('t', 'jk', [[<C-\><C-n>]], opts)
       end
 
@@ -1238,7 +1238,40 @@ require('lazy').setup({
       vim.cmd 'autocmd! TermOpen term://* lua set_terminal_keymaps()'
 
       -- Simple terminal toggle command (with description for which-key)
-      vim.keymap.set('n', '<leader>tt', '<cmd>ToggleTerm<CR>', { desc = '[T]oggle [T]erminal' })
+      vim.keymap.set('n', '<leader>tt', '<cmd>1ToggleTerm<CR>', { desc = '[T]oggle [T]erminal' })
+
+      -- Create a dedicated terminal for Claude Code
+      local Terminal = require('toggleterm.terminal').Terminal
+      local claude_term = Terminal:new({
+        cmd = 'claude',
+        count = 2, -- Use terminal ID 2 to keep it separate from the default terminal
+        direction = 'float',
+        float_opts = {
+          border = 'double',
+          width = function()
+            return math.floor(vim.o.columns * 0.9)
+          end,
+          height = function()
+            return math.floor(vim.o.lines * 0.85)
+          end,
+        },
+        on_open = function(term)
+          -- Optional: Set any buffer-local options for Claude terminal
+          vim.cmd('startinsert!')
+          -- You can add Claude-specific keymaps here if needed
+        end,
+        on_close = function(term)
+          vim.cmd('startinsert!')
+        end,
+      })
+
+      -- Function to toggle Claude terminal
+      function _G.toggle_claude_term()
+        claude_term:toggle()
+      end
+
+      -- Keymap for Claude terminal
+      vim.keymap.set('n', '<leader>tc', '<cmd>lua toggle_claude_term()<CR>', { desc = '[T]oggle [C]laude terminal' })
     end,
   },
 
