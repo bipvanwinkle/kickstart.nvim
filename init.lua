@@ -567,7 +567,7 @@ require('lazy').setup({
           -- for LSP related items. It sets the mode, buffer and description for us each time.
           local map = function(keys, func, desc, mode)
             mode = mode or 'n'
-            vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
+            vim.keymap.set(mode, keys, func, { buf = event.buf, desc = 'LSP: ' .. desc })
           end
 
           -- Jump to the definition of the word under your cursor.
@@ -965,24 +965,6 @@ require('lazy').setup({
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
     config = function()
-      -- Better Around/Inside textobjects
-      --
-      -- Examples:
-      --  - va)  - [V]isually select [A]round [)]paren
-      --  - yinq - [Y]ank [I]nside [N]ext [Q]uote
-      --  - ci'  - [C]hange [I]nside [']quote
-      require('mini.ai').setup { n_lines = 500 }
-
-      -- Add/delete/replace surroundings (brackets, quotes, etc.)
-      --
-      -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
-      -- - sd'   - [S]urround [D]elete [']quotes
-      -- - sr)'  - [S]urround [R]eplace [)] [']
-      require('mini.surround').setup()
-
-      -- Simple and easy statusline.
-      --  You could remove this setup call if you don't like it,
-      --  and try some other statusline plugin
       local statusline = require 'mini.statusline'
       -- set use_icons to true if you have a Nerd Font
       statusline.setup { use_icons = vim.g.have_nerd_font }
@@ -1159,48 +1141,6 @@ require('lazy').setup({
     end,
   },
 
-  {
-    'olimorris/codecompanion.nvim',
-    dependencies = {
-      'nvim-lua/plenary.nvim',
-      'nvim-treesitter/nvim-treesitter',
-    },
-    config = function()
-      local using_open_ai = vim.env.OPENAI_API_KEY
-      local using_anthropic = vim.env.ANTHROPIC_API_KEY
-      if using_open_ai then
-        require('codecompanion').setup {
-          strategies = {
-            chat = {
-              adapter = 'openai',
-            },
-            inline = {
-              adapter = 'openai',
-            },
-          },
-        }
-      elseif using_anthropic then
-        require('codecompanion').setup {
-          strategies = {
-            chat = {
-              adapter = 'anthropic',
-            },
-            inline = {
-              adapter = 'anthropic',
-            },
-          },
-        }
-      end
-
-      -- Normal Mode
-      vim.keymap.set('n', '<leader>atc', ':CodeCompanionChat Toggle<CR>', { desc = '[A]ssistant [T]oggle [C]hat' })
-      vim.keymap.set('n', '<leader>anc', ':CodeCompanionChat<CR>', { desc = '[A]ssistant [N]ew [C]hat' })
-      vim.keymap.set('n', '<leader>aa', ':CodeCompanionActions<CR>', { desc = '[A]ssistant [A]ctions' })
-
-      -- Visual Mode
-      vim.keymap.set('v', '<leader>ar', ':CodeCompanionReview<CR>', { desc = 'Review selected code' })
-    end,
-  },
 
   {
     'nvim-pack/nvim-spectre',
@@ -1228,14 +1168,13 @@ require('lazy').setup({
         },
       }
 
-      -- Set up key mappings for terminal
-      function _G.set_terminal_keymaps()
-        local opts = { buffer = 0, noremap = true }
-        vim.keymap.set('t', 'jk', [[<C-\><C-n>]], opts)
-      end
-
       -- Apply keymaps automatically when terminal opens
-      vim.cmd 'autocmd! TermOpen term://* lua set_terminal_keymaps()'
+      vim.api.nvim_create_autocmd('TermOpen', {
+        pattern = 'term://*',
+        callback = function()
+          vim.keymap.set('t', 'jk', [[<C-\><C-n>]], { buf = 0, noremap = true })
+        end,
+      })
 
       -- Simple terminal toggle command (with description for which-key)
       vim.keymap.set('n', '<leader>tt', '<cmd>1ToggleTerm<CR>', { desc = '[T]oggle [T]erminal' })
