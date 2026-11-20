@@ -1038,6 +1038,10 @@ require('lazy').setup({
           -- then start highlighting. If it's already installed, start immediately.
           if vim.tbl_contains(ts.get_installed 'parsers', lang) then
             start_highlight()
+          elseif not vim.tbl_contains(ts.get_available(), lang) then
+            -- No parser exists for this filetype (e.g. toggleterm, TelescopePrompt);
+            -- bail out instead of letting install() warn about an unsupported language.
+            return
           else
             ts.install({ lang }):await(function()
               vim.schedule(start_highlight)
