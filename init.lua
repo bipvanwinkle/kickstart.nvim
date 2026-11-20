@@ -1215,7 +1215,7 @@ require('lazy').setup({
       -- Create a dedicated terminal for Claude Code
       local Terminal = require('toggleterm.terminal').Terminal
       local claude_term = Terminal:new({
-        cmd = 'claude',
+        cmd = 'claude --chrome',
         count = 2, -- Use terminal ID 2 to keep it separate from the default terminal
         direction = 'float',
         float_opts = {
