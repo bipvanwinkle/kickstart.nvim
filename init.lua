@@ -355,7 +355,7 @@ require('lazy').setup({
   { -- Fuzzy Finder (files, lsp, etc)
     'nvim-telescope/telescope.nvim',
     event = 'VimEnter',
-    branch = '0.1.x',
+    branch = 'master',
     dependencies = {
       'nvim-lua/plenary.nvim',
       { -- If encountering errors, see telescope-fzf-native README for installation instructions
@@ -613,7 +613,7 @@ require('lazy').setup({
           --
           -- When you move your cursor, the highlights will be cleared (the second autocommand).
           local client = vim.lsp.get_client_by_id(event.data.client_id)
-          if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight) then
+          if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight) then
             local highlight_augroup = vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
             vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
               buffer = event.buf,
@@ -640,7 +640,7 @@ require('lazy').setup({
           -- code, if the language server you are using supports them
           --
           -- This may be unwanted, since they displace some of your code
-          if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint) then
+          if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint) then
             map('<leader>th', function()
               vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf })
             end, '[T]oggle Inlay [H]ints')
@@ -999,28 +999,61 @@ require('lazy').setup({
 
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
+    branch = 'main', -- master is EOL and incompatible with Neovim 0.11+
     build = ':TSUpdate',
-    main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
-    opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
-      -- Autoinstall languages that are not installed
-      auto_install = true,
-      highlight = {
-        enable = true,
-        -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-        --  If you are experiencing weird indenting issues, add the language to
-        --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
-      },
-      indent = { enable = true, disable = { 'ruby' } },
-    },
-    -- There are additional nvim-treesitter modules that you can use to interact
-    -- with nvim-treesitter. You should go explore a few and see what interests you:
-    --
-    --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-    --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-    --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+    config = function()
+      local ts = require 'nvim-treesitter'
+
+      -- Baseline parsers, installed asynchronously on startup.
+      ts.install {
+        'bash', 'c', 'diff', 'html', 'lua', 'luadoc',
+        'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc',
+      }
+
+      -- On the `main` branch highlighting/indent are enabled per buffer rather than
+      -- via a global `opts` table, so wire them up from a FileType autocmd.
+      vim.api.nvim_create_autocmd('FileType', {
+        group = vim.api.nvim_create_augroup('ts-setup', { clear = true }),
+        callback = function(ev)
+          local buf = ev.buf
+          local ft = vim.bo[buf].filetype
+          local lang = vim.treesitter.language.get_lang(ft)
+          if not lang then
+            return
+          end
+
+          local function start_highlight()
+            if vim.api.nvim_buf_is_valid(buf) then
+              pcall(vim.treesitter.start, buf, lang)
+            end
+          end
+
+          -- Auto-install the parser on demand (replaces the old `auto_install = true`),
+          -- then start highlighting. If it's already installed, start immediately.
+          if vim.tbl_contains(ts.get_installed 'parsers', lang) then
+            start_highlight()
+          elseif not vim.tbl_contains(ts.get_available(), lang) then
+            -- No parser exists for this filetype (e.g. toggleterm, TelescopePrompt);
+            -- bail out instead of letting install() warn about an unsupported language.
+            return
+          else
+            ts.install({ lang }):await(function()
+              vim.schedule(start_highlight)
+            end)
+          end
+
+          -- Ruby depends on vim's regex highlighting for correct indenting, so keep
+          -- syntax alongside treesitter and skip treesitter indent for it.
+          if ft == 'ruby' then
+            vim.bo[buf].syntax = 'ON'
+          else
+            -- Treesitter-based indentation (experimental on the `main` branch).
+            vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+          end
+        end,
+      })
+    end,
   },
 
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
@@ -1177,7 +1210,7 @@ require('lazy').setup({
       -- Create a dedicated terminal for Claude Code
       local Terminal = require('toggleterm.terminal').Terminal
       local claude_term = Terminal:new({
-        cmd = 'claude',
+        cmd = 'claude --chrome',
         count = 2, -- Use terminal ID 2 to keep it separate from the default terminal
         direction = 'float',
         float_opts = {
