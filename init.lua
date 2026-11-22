@@ -806,11 +806,6 @@ require('lazy').setup({
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
-        -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
-        --
-        -- You can use a sub-list to tell conform to run *until* a formatter
-        -- is found.
         javascript = { 'prettier' },
         typescript = { 'prettier' },
         typescriptreact = { 'prettier' },
@@ -1075,25 +1070,25 @@ require('lazy').setup({
     end,
   },
 
-  {
-    'nvim-treesitter/nvim-treesitter-context',
-    config = function()
-      require('treesitter-context').setup {
-        enable = true, -- Enable this plugin (Can be enabled/disabled later via commands)
-        max_lines = 0, -- How many lines the window should span. Values <= 0 mean no limit.
-        min_window_height = 0, -- Minimum editor window height to enable context. Values <= 0 mean no limit.
-        line_numbers = true,
-        multiline_threshold = 20, -- Maximum number of lines to show for a single context
-        trim_scope = 'outer', -- Which context lines to discard if `max_lines` is exceeded. Choices: 'inner', 'outer'
-        mode = 'cursor', -- Line used to calculate context. Choices: 'cursor', 'topline'
-        -- Separator between context and content. Should be a single character string, like '-'.
-        -- When separator is set, the context will only show up when there are at least 2 lines above cursorline.
-        separator = nil,
-        zindex = 20, -- The Z-index of the context window
-        on_attach = nil, -- (fun(buf: integer): boolean) return false to disable attaching
-      }
-    end,
-  },
+  -- TODO: nvim-treesitter-context disabled — async parse compat issue with Neovim 0.12
+  -- re-enable once plugin fixes: https://github.com/nvim-treesitter/nvim-treesitter-context/issues
+  -- {
+  --   'nvim-treesitter/nvim-treesitter-context',
+  --   config = function()
+  --     require('treesitter-context').setup {
+  --       enable = true,
+  --       max_lines = 0,
+  --       min_window_height = 0,
+  --       line_numbers = true,
+  --       multiline_threshold = 20,
+  --       trim_scope = 'outer',
+  --       mode = 'cursor',
+  --       separator = nil,
+  --       zindex = 20,
+  --       on_attach = nil,
+  --     }
+  --   end,
+  -- },
 
   {
     'folke/trouble.nvim',
@@ -1211,6 +1206,36 @@ require('lazy').setup({
 
       -- Keymap for Claude terminal
       vim.keymap.set('n', '<leader>tc', '<cmd>lua toggle_claude_term()<CR>', { desc = '[T]oggle [C]laude terminal' })
+
+      -- Create a dedicated terminal for pi
+      local pi_term = Terminal:new({
+        cmd = 'pi',
+        count = 3, -- Use terminal ID 3 to keep it separate from the default and Claude terminals
+        direction = 'float',
+        float_opts = {
+          border = 'double',
+          width = function()
+            return math.floor(vim.o.columns * 0.9)
+          end,
+          height = function()
+            return math.floor(vim.o.lines * 0.85)
+          end,
+        },
+        on_open = function(term)
+          vim.cmd('startinsert!')
+        end,
+        on_close = function(term)
+          vim.cmd('startinsert!')
+        end,
+      })
+
+      -- Function to toggle pi terminal
+      function _G.toggle_pi_term()
+        pi_term:toggle()
+      end
+
+      -- Keymap for pi terminal
+      vim.keymap.set('n', '<leader>tp', '<cmd>lua toggle_pi_term()<CR>', { desc = '[T]oggle [P]i terminal' })
     end,
   },
 
